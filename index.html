@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Study Log</title>
+    <link rel="stylesheet" type = "text/css" href="style.css">
+</head>
+<body>
+<div class ="header">
+<center>
+    <h1>Study Log</h1>
+</center>
+</div>
+<div class ="notepage">
+    <h2>Tasks:</h2>
+    <hr>
+    <label for="file">Tasks Progress:</label>
+<progress id="progressBar" value ="0" max="100"> </progress>
+    <!-- Add task input button -->
+    <input type = "text" id = "taskInput" class = "input-field" placeholder = "Enter a study task"/>
+    <button onclick ="addTask()" class = "button">+ Add Task</button>
+    <ul id="taskList"></ul>
+    <h2>Recent Session Logs:</h2>
+    <hr>
+    <ul id="sessionLogs"></ul>
+    <button onclick = "clearLogs()" class = "button" style = "margin-top: 10px;">Clear Logs</button>
+</div>
+<script>
+function addTask(taskText = null, save = true){
+    const input = document.getElementById("taskInput");
+    const task = taskText || input.value.trim();
+    
+    if (task !== ""){
+    const list = document.getElementById("taskList");
+    
+    const item = document.createElement("li");
+    item.style.display = "flex";
+    item.style.flexDirection = "column";
+    
+    const topRow = document.createElement("div");
+    topRow.style.display = "flex";
+    topRow.style.alignItems = "center";
+    
+    const taskSpan = document.createElement("span");
+    taskSpan.textContent = task;
+    taskSpan.style.flex = "1";
+    
+    const startBtn = document.createElement("button");
+    startBtn.textContent = "Start";
+    startBtn.className = "button";
+    startBtn.style.marginLeft = "10px"
+    
+    topRow.appendChild(taskSpan);
+    topRow.appendChild(startBtn);
+    item.appendChild(topRow);
+    
+    const timerContainer = document.createElement("div");
+    timerContainer.style.display = "none";
+    timerContainer.style.marginTop = "10px"
+    
+    const timerText = document.createElement("span");
+    timerText.textContent = "00:00";
+    timerText.style.marginRight = "10px";
+    
+    const stopBtn = document.createElement("button");
+    stopBtn.textContent = "Stop";
+    stopBtn.className = "button";
+    
+    const pauseBtn = document.createElement("button")
+    pauseBtn.textContent = "Pause";
+    pauseBtn.className = "button";
+    pauseBtn.style.marginLeft = "10px";
+    
+    timerContainer.appendChild(timerText);
+    timerContainer.appendChild(stopBtn);
+    item.appendChild(timerContainer);
+    timerContainer.appendChild(pauseBtn);
+    
+    const logContainer = document.createElement("div");
+    logContainer.style.display = "none";
+    logContainer.style.marginTop = "10px";
+    
+    const select = document.createElement("select");
+    ["Focused", "Distracted"].forEach(option => {
+        const opt = document.createElement("option");
+        opt.value = option.toLowerCase();
+        opt.textContent = option;
+        select.appendChild(opt);
+    });
+    
+    const notes = document.createElement("textarea");
+    notes.placeholder = "Add your notes here...";
+    notes.style.display = "block";
+    notes.style.marginTop = "5px";
+    notes.style.width = "90%";
+    
+    const logBtn = document.createElement("button");
+    logBtn.textContent = "Log Session";
+    logBtn.className = "button";
+    logBtn.style.marginTop = "5px"
+    
+    logContainer.appendChild(select);
+    logContainer.appendChild(notes);
+    logContainer.appendChild(logBtn);
+    item.appendChild(logContainer);
+    
+    list.appendChild(item);
+    if (save) {
+        const currentTasks = JSON.parse(localStorage.getItem("tasks")) || [];
+        currentTasks.push(task);
+        localStorage.setItem("tasks", JSON.stringify(currentTasks));
+        }
+    input.value = "";
+    
+    let seconds = 0;
+    let timer;
+    let isPaused = false;
+    
+    updateProgress();
+    
+    startBtn.onclick = () => {
+        startBtn.style.display = "none";
+        timerContainer.style.display = "flex"
+        seconds = 0;
+        timer = setInterval(() => {
+            if (!isPaused){
+            seconds++;
+            const mins = String(Math.floor(seconds/60)).padStart(2,'0');
+            const secs = String(seconds%60).padStart(2,'0');
+            timerText.textContent = `${mins}:${secs}`;
+       }
+        }, 1000);
+    };
+    
+    stopBtn.onclick = () => {
+        clearInterval(timer);
+        timerContainer.style.display = "none";
+        logContainer.style.display = "block";
+    };
+    
+    pauseBtn.onclick = () => {
+        isPaused = !isPaused;
+        pauseBtn.textContent = isPaused ? "Resume" : "Pause";
+        };
+    
+    logBtn.onclick = () => {
+        const focus = select.value;
+        const noteText = notes.value;
+        const duration = timerText.textContent;
+        
+        displayLog(task, duration, noteText, focus);
+        item.remove();
+        let currentTasks = JSON.parse(localStorage.getItem("tasks")) || [];
+        currentTasks = currentTasks.filter(t => t !== task);
+        localStorage.setItem("tasks", JSON.stringify(currentTasks));
+        
+        const currentLogs = JSON.parse(localStorage.getItem("logs")) ||[];
+        currentLogs.push({task, duration, notes: noteText, focus});
+        localStorage.setItem("logs", JSON.stringify(currentLogs));
+        updateProgress();
+        
+        const logList = document.getElementById("sessionLogs");
+        const logItem = document.createElement("li");
+        logItem.style.marginBottom = "10px";
+        logItem.style.padding = "8px";
+        logItem.style.border = "1px solid #ccc";
+        logItem.style.borderRadius = "8px";
+        logItem.innerHTML = `
+            <strong>Task:</strong> ${task}<br>
+            <strong>Duration:</strong> ${duration}<br>
+            <strong>Notes:</strong> ${noteText} 
+            
+        `;
+        
+    };
+
+    }
+    
+}
+function updateProgress(){
+    let totalTasks = document.querySelectorAll("#taskList li").length + document.querySelectorAll("#sessionLogs li").length;
+    
+    let completedTasks = document.querySelectorAll("#sessionLogs li").length;
+    
+    let progressBar = document.getElementById("progressBar");
+    if (totalTasks === 0){
+    progressBar.value = 0;
+    }else{
+    progressBar.value = (completedTasks/totalTasks) * 100;
+    }
+}
+window.onload = () =>{
+    const storedTasks = JSON.parse(localStorage.getItem("tasks")) ||[];
+    const storedLogs = JSON.parse(localStorage.getItem("logs")) ||[];
+    storedTasks.forEach(task => {
+        addTask(task, false);
+    });
+    storedLogs.forEach(log => {
+    displayLog(log.task, log.duration, log.notes, log.focus);});
+    updateProgress();
+    };
+    
+function displayLog(task, duration, noteText, focus){
+    const logList = document.getElementById("sessionLogs");
+    const logItem = document.createElement("li");
+    logItem.style.marginBottom = "10px";
+    logItem.style.padding = "8px";
+    logItem.style.border = "1px solid #ccc";
+    logItem.style.borderRadius = "8px";
+    logItem.innerHTML = `
+    <strong>Task:</strong> ${task}<br>
+    <strong>Duration:</strong> ${duration}<br>
+    <strong>Notes:</strong> ${noteText}
+`;
+    logList.appendChild(logItem);
+    }
+
+function clearLogs(){
+    localStorage.removeItem("logs");
+    const logList = document.getElementById("sessionLogs");
+    logList.innerHTML = "";
+    updateProgress();
+    }
+</script>
+
+</body>
+</html>
